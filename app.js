@@ -15,9 +15,41 @@ app.use(express.json())
 // Models
 const User = require('./models/User.js')
 
+// Verificar token
+const checkToken = (req, res, next) => {
+    const authHeader = req.headers['authorization']
+    const token = authHeader && authHeader.split(" ")[1]
+
+    if (!token) {
+        return res.status(401).json({ msg: 'Acesso negado' })
+    }
+
+    try {
+        const secret = process.env.SECRET
+        jwt.verify(token, secret)
+        next()
+    } catch (err) {
+        res.status(400).json({ msg: 'Token inválido' })
+    }
+}
+
 // Open Route - Public Route
 app.get('/', (req, res) => {
     res.status(200).json({ msg: 'Hello World' })
+})
+
+// Private Route
+app.get('/user/:id', checkToken, async (req, res) => {
+    const id = req.params.id
+
+    // Check if user exists
+    const user = await User.findById(id, '-password')
+
+    if (!user) {
+        return res.status(404).json({ msg: 'Usuários não encontrado!' })
+    }
+
+    res.status(200).json({ user })
 })
 
 // Register User
@@ -90,18 +122,28 @@ app.post('/auth/login', async (req, res) => {
     if (!checkPassword) {
         return res.status(422).json({ msg: 'Senha inválida!' })
     }
+
+    try {
+        const secret = process.env.secret
+        const token = jwt.sign({
+            id: user._id
+        }, secret,)
+
+        res.status(200).json({ msg: "Usuário logado com sucesso!", token })
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ msg: 'Erro interno do servidor, tente novamente mais tarde!' })
+    }
 })
 
 // Credencials
 const dbUser = process.env.DB_USER
 const dbPassword = process.env.DB_PASS
 
-mongoose
-    .connect(`mongodb+srv://${dbUser}:${dbPassword}@cluster0.a7thngl.mongodb.net/AuthDb?retryWrites=true&w=majority`, 
-    )
-    .then(() => {
-        app.listen(PORT, () => {
-            console.log(`Servidor rodando em: http://localhost:${PORT}`)
-        })
+mongoose.connect(`mongodb+srv://${dbUser}:${dbPassword}@cluster0.a7thngl.mongodb.net/AuthDb?retryWrites=true&w=majority`)
+.then(() => {
+    app.listen(PORT, () => {
+        console.log(`Servidor rodando em: http://localhost:${PORT}`)
     })
-    .catch((err) => console.log(err))
+})
+.catch((err) => console.log(err))
