@@ -24,7 +24,7 @@ app.get('/', (req, res) => {
 app.post('/auth/register', async (req, res) => {
     const {name, email, password, confirmPassword} = req.body
 
-    // Validações
+    // Validations
     if (!name) {
         return res.status(422).json({ msg: 'O nome é obrigatório!' })
     }
@@ -53,7 +53,7 @@ app.post('/auth/register', async (req, res) => {
     const user = new User({
         name,
         email,
-        password,
+        password: passwordHash,
     })
 
     try {
@@ -62,6 +62,33 @@ app.post('/auth/register', async (req, res) => {
     } catch (err) {
         console.log(err)
         res.status(500).json({ msg: 'Erro interno do servidor, tente novamente mais tarde!' })
+    }
+})
+
+// Login User
+app.post('/auth/login', async (req, res) => {
+    const {email, password} = req.body
+
+    // Validations
+    if (!email) {
+        return res.status(422).json({ msg: 'O e-mail é obrigatório!' })
+    }
+    if (!password) {
+        return res.status(422).json({ msg: 'A senha é obrigatório!' })
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ email: email })
+
+    if (!user) {
+        return res.status(404).json({ msg: 'Usuário não encontrado!' })
+    }
+
+    // Check if password match
+    const checkPassword = await bcrypt.compare(password, user.password)
+
+    if (!checkPassword) {
+        return res.status(422).json({ msg: 'Senha inválida!' })
     }
 })
 
